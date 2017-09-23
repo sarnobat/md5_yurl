@@ -43,10 +43,21 @@ function initialize() {
 	.done(function(a1, a2){
 		
 		var folders = a2[0].split('\n');
+		
+		var buttonsHtml = folders.map(function(categoryName) {
+			return "<input type=button class='genericButton' "
+				+ " value='" + categoryName + "'"
+				+ " onclick='copy(this)'>";
+		})
+		.reduce(function(acc, tag){
+			return acc + "&nbsp;" + tag;
+		}, "");
+		
 		var images = shuffle(a1[0].split('\n')).splice(0, 50);
 		
 		$("#url_cards").append(
-			images.map(function(item) { 
+			"<ol>"
+			+ images.map(function(item) { 
 				var pair = item.split('::');
 				var filePath = pair[1];
 				return  { 
@@ -56,14 +67,17 @@ function initialize() {
 				};
 			}).map(function(fileObj) {
 				var cardHtml = "";
-				cardHtml += "<img src='" + fileObj.url + "' height=75>";
+				cardHtml += "<img src='" + fileObj.url + "' height=200>";
 				return cardHtml;
 			}).map(function(item) {
-				return "<div class='card'>" + item + "</div>";
-			
+				return "<li class='buttonize' style='background-color: #FDFD96'>" 
+					+ item 
+					+ buttonsHtml
+					+ "</li>";
 			}).reduce(function(acc, tag){
 				return acc + "&nbsp;" + tag;
 			}, "")
+			+ "</ol>"
 		);
 		
 		$("#url_thumbnails").append(
@@ -500,38 +514,6 @@ function moveToBottom(source) {
 	}
 }
 
-function moveUp(source) {
-// 	var first = $("#" + source).prev().attr('id');
-// 	var second = source;
-// 	swap(first, second);
-	alert("Needs reimplementing 1");
-}
-
-function moveDown(source) {
-// 	var first = source;
-// 	var second = $("#" + source).next().attr('id');
-// 	swap(first, second);
-
-	alert("Needs reimplementing 2");
-}
-
-function swap(firstId, secondId) {
-// 	$.getJSON(host + ":44439/md5ro/swapOrdinals?firstId=" + firstId + "&secondId=" + secondId, 
-// 		function(result){
-// 		})
-// 		.success(function(data) {  
-// 			$("#" + secondId).after($("#" + firstId));
-// 		})
-// 		.error(function() { 
-// 			alert("error occurred "); 
-// 		})
-// 		.complete(function() { 
-// 		});
-
-	alert("Needs reimplementing 3");
-
-}
-
 function sendBatch() {
 	var urls = encodeURIComponent($("#urlBatchToSend").val());
 	$("#batchStatus").text("Sending new batch");	
@@ -629,7 +611,7 @@ function findCategoryChildren(categoriesNode, categoryIdToFind) {
 	}
 }
 
-function ITEM_TO_HTML(categories, currentCategoryId, parentCategoryId, item) {
+function ITEM_TO_HTML(categories, item) {
 	return function (item) {
 		return fillCardItem(null, item, null, null, null, categories);
 	};
@@ -777,11 +759,6 @@ function getCategoryListHtml(categoryId, categoryName, urlsInCategory) {
 }
 
 function fillCardItem(resultRowNumber, field, result, limit, biggestImages, categories) {
-	if (resultRowNumber != null && result != null && limit != null) {	
-		if (resultRowNumber > limit && resultRowNumber < result.length - 10)  {
-			return;
-		}
-	}
 	
 	//var one = $("<td style='background-color:'>1");
 	var two = $("<td style='background-color:' >2");
@@ -1026,159 +1003,6 @@ function getCategoriesUnderID(categories, categoryId) {
 	return [];
 }
 
-function configureKeyBindings() {
-	if (categories != null) {
-		$.each(categories, function(a,binding,c){
-			if (binding.key == 'null') {
-				$("#keys").append("#");
-				// Don't remove the "null" otherwise we'll assign hash to this category
-			}
-			$("#keys").append(binding.key + "=" + binding.name +" # node " + binding.id + "\n");
-			$("#keyLinks").append("<li style='text-transform:capitalize;' id='list_"+binding.id+"'><a href='/md5ro/?rootId=" + binding.id+ "'>" + " " + binding.name + " (<span id='count_"+binding.id+"'></span>)</a></li>");
-			$("#count_" + binding.id).text(binding.count);
-			$(window).keypress(function(event) {
-				if ($("#keys").is(":focus")) {
-					return;
-				}
-				if (binding.key == String.fromCharCode(event.which)) {
-					var parentId = binding.id;
-					var childId = $("#url_cards").children()[0].id;
-					var currentRootId = rootId;
-					relate(parentId, childId, currentRootId);
-				}
-			});			
-		});
-	}
-	$(window).keypress(function(event) {
-		alert("Needs reimplementing: key bindings");
-// 		var key = String.fromCharCode(event.which);
-// 		if (('_' == key)||('-'==key) ||('j'==key)|| ('n' == key) ) {
-// 			var idOfTop = $("#url_cards").children()[0].id;
-// 			moveToBottom(idOfTop);
-// 		}
-// 		if (String.fromCharCode(event.which) == '<') {
-// 			var parentId = parentOfRootId;
-// 			var childId = $("#url_cards").children()[0].id;
-// 			var currentRootId = rootId;
-// 			relate(parentId, childId, currentRootId);
-// 		}
-// 		if (String.fromCharCode(event.which) == '>') {
-// 			console.debug("remove from list (deal with it later)");
-// 		}
-	});
-}
-//----------------------------------------------------------------------------------------
-// D3 Visualization
-//----------------------------------------------------------------------------------------
-
-function drawVisualization(data) {
-	console.debug(data);
-	//var ua = navigator.userAgent;
-	var forceDirectedGraph = new $jit.ForceDirected({
-		injectInto: 'infovis',
-		Node: {
-			overridable: true
-		},
-		Edge: {
-			overridable: true,
-		},
-		Label: {  
-			type: 'Native', //Native or HTML  
-			size: 5,  
-			style: 'bold'  
-		  },
-		Navigation: {  
-			enable: true,  
-			//Enable panning events only if we're dragging the empty  
-			//canvas (and not a node).  
-			panning: 'avoid nodes',  
-			zooming: 10 //zoom speed. higher is more sensible  
-		},
-	});
-
-	var listOfNodes;
-  
-	{
-		var adjacenciesList = [];
-		for (var i = 0; i < data.children.length; i++) {
-			adjacenciesList[i] = { "nodeTo" : data.children[i].id };
-		}
-		
-		
-		listOfNodes = [{
-		
-			id:45,
-			data : {
-				"$color"		:	"#C74243",
-				"$type"			:	"star",
-				"$dim"			: 	17
-			},
-			adjacencies : adjacenciesList
-		}];
-		
-		addNodes(data, listOfNodes, 0);
-	}
-
-	forceDirectedGraph.loadJSON(listOfNodes); 
-
-	forceDirectedGraph.computeIncremental({
-		onComplete: function(){
-			forceDirectedGraph.animate(function(){ });
-		}
-	});
-	 
-}
-
-function addNodes(data, listOfNodes, level1) {
-	if (data.children == null) {
-		return;
-	}
-	++level1;
-	for (var i = 0; i < data.children.length; i++) {
-		var category = data.children[i];
-		listOfNodes.push({ 
-			id : category.id,
-			name : category.name,
-			"level" : level1,
-			data : {
-				"$color"		:	getColorForLevel(level1),
-				"$type"			:	getShapeForLevel(level1),
-				"$dim"			: 	4
-			},
-			adjacencies : getAdjacencies(category),
-		});
-		
-		addNodes(category, listOfNodes, level1);
-	}
-}
-
-
-function getColorForLevel(level) {
-	if (level == 1) {
-		return "red";
-	}
-	if (level == 2) {
-		return "green";
-	}
-	if (level == 3) {
-		return "blue";
-	}
-	return "yellow";
-}
-
-function getShapeForLevel(level) {
-	if (level == 1) {
-		return "star";
-	}
-	if (level == 2) {
-		return "square";
-	}
-	if (level == 3) {
-		return "triangle";
-	}
-	return "circle";
-}
-
 function getAdjacencies(category) {
 	var adjacenciesList = [];
 	
@@ -1203,12 +1027,6 @@ function getCategoryNamesMap(categoriesRecursive) {
 //                        categoriesMap.concat(categoryNames);
 	}
 	return categoriesMap;
-}
-
-function openHtmlTextInNewTab() {
-	var newWin = open('url', '_blank', '');
-	newWin.document.write($("#htmlText").val());
-	newWin.document.title = document.title;
 }
 
 
