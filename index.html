@@ -100,6 +100,33 @@ function initialize() {
 	}); 
 }
 
+var fileServerPrefix = "http://netgear.rohidekar.com:44452";
+
+function copy(button) {
+	// TODO: get the file path
+	var subdirSimpleName = button.value;
+	var filePath = button.parentElement.children[0].src.replace(fileServerPrefix, '');
+	var parentDirPath = getParentPath(filePath);
+	return copyFileToFolder(filePath, 
+//		'/media/sarnobat/Unsorted/new/Photos/iPhone/' 
+		'/media/sarnobat/3TB/trash/'
+//		'/home/sarnobat/trash/' 
+		+subdirSimpleName, button);
+}
+
+function getParentPath(filePath) {
+	return filePath.split('/').slice(-2).join('/');
+}
+
+function copyFileToFolder(filePath, destinationDirPath, button) {
+//debugger;
+        $.getJSON(host + ":44451/cmsfs/copyToFolder?filePath="+encodeURIComponent(filePath) + "&destinationDirPath=" + encodeURIComponent(destinationDirPath), function(response) {
+                $(button).css('background-color','green');
+                debugger;
+        });
+		// TODO: remove element (like with move)
+}
+
 function shuffle(array) {
   var currentIndex = array.length, temporaryValue, randomIndex ;
 
