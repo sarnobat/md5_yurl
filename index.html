@@ -59,7 +59,7 @@ function initialize() {
 				cardHtml += "<img src='" + fileObj.url + "' height=75>";
 				return cardHtml;
 			}).map(function(item) {
-				return "<div class='card'>" + cardHtml + "</div>";
+				return "<div class='card'>" + item + "</div>";
 			
 			}).reduce(function(acc, tag){
 				return acc + "&nbsp;" + tag;
