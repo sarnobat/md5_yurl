@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>md5ro</title>
+<link rel="shortcut icon" href="http://netgear.rohidekar.com/static/icons/Orb_Icons_004.png" type="image/x-icon" />
+<script src="http://www.kryogenix.org/code/browser/sorttable/sorttable.js" type="text/javascript"></script>
+<link rel="stylesheet" href="http://jqueryui.com/jquery-wp-content/themes/jqueryui.com/style.css">
+<link rel="stylesheet" href="http://code.jquery.com/ui/1.11.0/themes/smoothness/jquery-ui.css">
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.js"></script>
+<script src="http://netgear.rohidekar.com/md5ro/jquery/jquery-ui.js"></script>
+<script src="http://netgear.rohidekar.com/md5ro/js/imagezoom.ssarnobat.js"></script>
+<script type="text/javascript" src="http://netgear.rohidekar.com/md5ro/jquery/purl.js"></script>
+<!-- we can't use the kb_shortcuts API because you can't keep the shift key held down in between keypresses -->
+<script src="http://netgear.rohidekar.com/md5ro/js/webtoolkit.md5.js"></script>
+<script>
+
+
+var host = "http://netgear.rohidekar.com";
+// TODO: Don't use this
+var urlBase = "http://netgear.rohidekar.com:44485/md5ro";
+var rootId;
+var parentOfRootId;
+var orderedDescending = true;
+var readyToRender = false;
+var limit;
+var uncategorizedResponse; // Populated via rest call
+var categories; // Populated via rest call
+var biggestImages = {};
+var IMAGE_SIZE = 100; // for thumbnails
+var imageSize = 300; // for cards
+
+function initialize() {
+
+	initializeBeforeAjax();
+	
+	////
+	//// Uncategorized URLs (main part)
+	////
+	
+	$.when(
+		$.ajax(host + ":44485/md5ro/uncategorized?rootId=" +rootId), 
+		$.ajax(host + "/md5ro/iphone_categories.txt"))
+	.done(function(a1, a2){
+		
+		var folders = a2[0].split('\n');
+		var images = shuffle(a1[0].split('\n')).splice(0, 50);
+		
+		$("#url_cards").append(
+			images.map(function(item) { 
+				var pair = item.split('::');
+				var filePath = pair[1];
+				return  { 
+					md5 : pair[0], 
+					filepath : filePath,
+					url : 'http://netgear.rohidekar.com:44452' + filePath,
+				};
+			}).map(function(fileObj) {
+				var cardHtml = "";
+				cardHtml += "<img src='" + fileObj.url + "' height=75>";
+				return cardHtml;
+			}).map(function(item) {
+				return "<div class='card'>" + cardHtml + "</div>";
+			
+			}).reduce(function(acc, tag){
+				return acc + "&nbsp;" + tag;
+			}, "")
+		);
+		
+		$("#url_thumbnails").append(
+			images.map(function(item) { 
+				var pair = item.split('::');
+				var filePath = pair[1];
+				return  { 
+					md5 : pair[0], 
+					filepath : filePath,
+					url : 'http://netgear.rohidekar.com:44452' + filePath,
+				};
+			}).map(function(fileObj) {
+				return "<img src='" + fileObj.url + "' height=75>";
+			}).reduce(function(acc, tag){
+				return acc + "&nbsp;" + tag;
+			}, "")
+		);
+
+
+	}); 
+}
+
+function shuffle(array) {
+  var currentIndex = array.length, temporaryValue, randomIndex ;
+
+  // While there remain elements to shuffle...
+  while (0 !== currentIndex) {
+
+    // Pick a remaining element...
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex -= 1;
+
+    // And swap it with the current element.
+    temporaryValue = array[currentIndex];
+    array[currentIndex] = array[randomIndex];
+    array[randomIndex] = temporaryValue;
+  }
+
+  return array;
+}
+
+
+// Map function
+function CATGORY_TREE_TO_LINKS_HTML(categoryNode) {
+	var category = categoryNode;
+	return "<input type=checkbox value=false name=" + category.id + ">"
+		+ "<a href='/md5ro/?rootId=" + category.id + "' style='text-transform:capitalize;'>"
+		+ category.name + " (" + category.id + ")"
+		+ "</a>"
+		+ "</input>"
+		+ "<br>"
+		+ "<ul>"
+		+ category.children.map(CATGORY_TREE_TO_LINKS_HTML).join("</li><li>")
+		+ "</ul>"
+		;
+}
+
+// Reduction function
+function CATEGORY_TO_LINK(accumulator, categoryNode) {
+	var category = categoryNode;
+	return accumulator + "<input type=checkbox value=false name=" + category.id + ">"
+		+ "<a href='/md5ro/?rootId=" + category.id + "' style='text-transform:capitalize;'>"
+		+ category.name + " (" + category.id + ")"
+		+ "</a>"
+		+ "</input>"
+		+ "<br>";
+}
+	
+function renderIfReady() {
+	if (!uncategorizedResponse) {
+		return;
+	}
+	if (!uncategorizedResponse.categoriesRecursive) {
+		debugger;
+	}
+	categories = getCategoriesUnderID2(uncategorizedResponse.categoriesRecursive, rootId);
+	configureKeyBindings();
+	$("#status").text("Populating");
+	//var categoryOrdinal = 0;
+	var categoryIdsToNames = getCategoryNamesMap(uncategorizedResponse.categoriesRecursive);
+	var urls = uncategorizedResponse.urls;
+
+	var categoryIdsUnderRootOrdered = putRootAtFront(urls, rootId);
+	
+	var cardsHtml = "";
+	{
+		var urlsRootOnly = uncategorizedResponse.urls[rootId];
+		if (urlsRootOnly != null) {
+			//var headLength = 10;
+			//var truncated = 
+			// This doesn't return the new list unfortunately. It will cause the thumbnails to also get truncated
+			//urlsRootOnly.splice(headLength, urlsRootOnly.length - 1 - headLength);
+			//console.debug("remaining elements: " + truncated.length + " of " + urlsRootOnly.length);
+			var childCategories = findCategoryChildren(uncategorizedResponse.categoriesRecursive, rootId);
+			cardsHtml = urlsRootOnly				
+				.map(function(i){ if (i.ordinal < 9999999999) { i.ordinal = i.ordinal * 1000; }; return i;})
+				.sort(function (u1, u2) {return u2.ordinal - u1.ordinal ;})
+				.slice(0, limit)
+				.map(ITEM_TO_HTML(childCategories, rootId, parentOfRootId)).join("\n");
+		}
+	}
+	var urlThumbnailsHtml = "";
+	var urlListHtml = "";
+	var tableHtml = "";
+	var productsHtml = "";
+	var markupHtml = "";
+	for (var i = 0; i < categoryIdsUnderRootOrdered.length; ++i) {
+		var categoryId = categoryIdsUnderRootOrdered[i];
+		var categoryName = categoryIdsToNames[categoryId];
+		var urlsForCategory = urls[categoryId];
+		
+		urlThumbnailsHtml += getCategoryThumbnailsHtml(categoryId, categoryIdsToNames[categoryId], urls[categoryId], limit);
+		tableHtml += getCategoryTableHtml(categoryId, categoryName, urlsForCategory);
+		urlListHtml += getCategoryListHtml(categoryId, categoryIdsToNames[categoryId], urls[categoryId]);
+		productsHtml += getProductsHtml(categoryId, categoryName, urlsForCategory);
+		markupHtml += "<h1>" + categoryName + "</h1>\n\n" + urlsForCategory.map(ITEM_TO_IMAGE).join("\n");
+	}
+	$("#url_cards").append(cardsHtml);
+	$("#url_thumbnails").append(urlThumbnailsHtml);
+	$("#url_table").append(tableHtml);
+	$("#list").append(urlListHtml);
+	$("#products").append(productsHtml);
+	$("#htmlText").val(markupHtml);
+}
+
+function initializeBeforeAjax() {
+
+	////
+	//// Determine the root ID
+	////
+	getRootId: {
+		rootId = $.url().param('rootId');
+	}
+
+	updateURL: {
+		if (rootId == null || rootId == '') {
+			rootId = 45;
+			history.pushState(null, null, '/md5ro?rootId=' + rootId); // HTML5
+		}
+	}
+	
+	setCountAndTitle: {
+		$.getJSON(host + ":44438/md5ro/count_non_recursive?rootId=" +rootId,function(result){
+			$("#count").text(result.count);
+			$("#category").text(result.name);
+			document.title = result.name.charAt(0).toUpperCase() + result.name.slice(1) + " (yurl)";
+		});
+	}
+
+	setParentOfRootId(rootId);
+	
+	showLoading : {
+		$("#status").text("Loading"); 			
+	}
+
+	setColorForCategory : {		
+		var rootColor = MD5(rootId.toString()).substring(0,6);
+		$("#rootColor").attr("style", "background-color: #" + rootColor);
+	}
+
+	limit = $.url().param('limit');
+	if (limit == null) {
+		limit = 50;
+		window.history.pushState("object or string", "Title", document.URL + "&limit=50");
+	}
+}
+
+function fillThumbnailItem(resultRowNumber, field, result, limit, biggestImages, categories) {
+	if (resultRowNumber > limit && resultRowNumber < result.length - 10)  {
+		return;
+	}
+	var toBeAppended = createImageCell(field, biggestImages, IMAGE_SIZE, resultRowNumber);
+	$("#url_thumbnails").append(toBeAppended);
+	
+}
+
+function getDownloadedVideoColor(downloaded) {
+	if ("null" == downloaded) {
+		return "red";
+	}
+	if (!downloaded) {
+		return "red";
+	}
+	return "green";
+}
+
+function ITEM_TO_IMAGE(item) {
+	return createImageCell(item)[0].outerHTML;
+}
+
+// Creates a JQquery DOM element
+// field = item
+function createImageCell(field) {
+
+	var imageCell = "";
+	var hasScreenshot = false;
+	{
+		if (field.url.match(".jpg\??") || 
+			field.url.match(/.*jpg/i) ||
+			field.url.match(".gif$") || 
+			field.url.match(".png\??") || 
+			field.url.match("images.q=tbn:")) {
+			imageCell += ("<img class=itemImage src='"+field.url+"' height="+imageSize+" onmouseenter='zoom(this)' title='" +field.title+ "'>");
+			hasScreenshot = true;
+		}
+		if (field.user_image != null) {
+				imageCell += ("<img class=itemImage src=\""+ field.user_image +"\" class='screenshot' width="+imageSize+" />");
+				hasScreenshot = true;		
+		} else if (field.url.match("youtube.com")) {
+			if (field.url.match("youtube.com/watch")) {
+				var youtubeId = field.url.replace(/^https?:..www.youtube.com.watch.*v=([^&]+).*/g,'$1');
+				imageCell += ("");
+				imageCell += ("<img class=itemImage src='http://img.youtube.com/vi/"+youtubeId+"/0.jpg' width="+imageSize+" title='" +field.title+ "'>");
+				
+				imageCell += ("");
+				imageCell += ("");
+				imageCell += ("");
+				hasScreenshot = true;
+			}
+			
+		} else if (field.url.match("dailymotion.com/video")) {
+				var youtubeId = field.url.replace(/^http.*video.([^?]+)(.*)/g,'$1');
+				imageCell += ("");
+				imageCell += ("<img class=itemImage src='http://dailymotion.com/thumbnail/video/"+youtubeId +"' width="+imageSize+" title='" +field.title+ "'>");
+				imageCell += ("");
+				imageCell += ("");
+				imageCell += ("");
+				hasScreenshot = true;
+			
+		} else if (field.url.match(".amazon.co[^/]+\/[^s]")) {
+		//else if (false) {
+			imageCell += ("");
+			var asin = field.url.replace(/.+((dp)|(product))\/([^\/?]+)[\/?].*/,'$4');
+			asin = asin.replace(/.*dp./,'');
+			asin = asin.replace(/.*gp.aw.d./, '');
+			asin = asin.replace(/.ref_?=.*/, '');
+			asin = asin.replace(/.*offer-listing./, '');
+			var productImageUrl = 'http://images.amazon.com/images/P/'+asin+'.01.LZZZZZZZ.jpg';
+			imageCell += ("<img class=itemImage src='"+productImageUrl+"' height='280' title='" +field.title+ "'>");
+			hasScreenshot = true;
+		}
+	}
+	
+	if (!hasScreenshot) {
+		imageCell += ("<img class=itemImage src=\"http://free.pagepeeker.com/v2/thumbs.php?size=x&url="+encodeURIComponent(field.url)+"\" class='screenshot' width="+imageSize+" title='" +field.title+ "'/>");
+		// Check if the biggest image server is up
+		if (biggestImages != null) {
+			if (biggestImages[field.url] != null) {
+				imageCell += ("<img class=itemImage src=\""+ biggestImages[field.url] +"\" class='screenshot' width="+imageSize+" />");
+			}
+		}
+	}
+
+	// Tooltip
+	var img = $($.parseHTML("<a href='"+field.url+"'  title='" +field.title+ "' >" + imageCell + "</a>"));
+/*	img.tooltip({
+		items: "img",
+		content:  field.title + "<br><font style=\"font-size : xx-small \">"+field.url+"</font>",
+	});	*/
+	return img;
+}
+
+function relateNew(newParentId, currentRootId, button) {
+	if (newParentId == null) {
+		alert("newParentId = " + newParentId);
+		return;
+	}
+
+	var liElem = button.parentElement.parentElement.parentElement.parentElement.parentElement;
+	var url 		= $(liElem).attr("url");
+	var created 	= $(liElem).attr("created");
+	var categoryId 	= $(liElem).attr("categoryId");
+	
+	url = urlBase + "/relate?parentId=" +newParentId+"&url=" +  encodeURIComponent(url) + "&currentParentId=" + categoryId + "&created=" + created;	
+	var parentId = newParentId;
+	
+	removeTopNew(newParentId, liElem);
+	//
+	// The main part
+	//
+	$.getJSON(url, function(result){})
+		.success(function() { 
+
+			$("#list_"+parentId).effect("highlight", null, 4000, function() {});
+			
+			// Change the destination category count
+			var count = parseInt($("#count_"+parentId).text()) + 1;
+			$("#count_"+parentId).text(count);
+			$("#count_"+parentId).css("font-weight","Bold");
+			
+			// Decrement the number of items in this category that is displayed
+			var newCount = parseInt($("#count").text());
+			newCount -= 1;
+			$("#count").text(newCount);
+		})
+		.error(function() { alert("error occurred "); })
+		.complete(function() { });
+}
+
+function relate(parentId, childId, currentRootId) {
+	removeTop(parentId, childId);
+	var url = urlBase + "/relate?parentId=" +parentId+"&childId=" +  childId + "&currentParentId=" + currentRootId;	
+	//
+	// The main part
+	//
+	$.getJSON(url, function(result){})
+		.success(function() { 
+
+			$("#list_"+parentId).effect("highlight", null, 4000, function() {});
+			
+			// Change the destination category count
+			var count = parseInt($("#count_"+parentId).text()) + 1;
+			$("#count_"+parentId).text(count);
+			$("#count_"+parentId).css("font-weight","Bold");
+			
+			// Decrement the number of items in this category that is displayed
+			var newCount = parseInt($("#count").text());
+			newCount -= 1;
+			$("#count").text(newCount);
+		})
+		.error(function() { alert("error occurred "); })
+		.complete(function() { });
+}
+
+function createAndRelate(childId, currentRootId) {
+	var newParentName = prompt('Category name:');
+	removeTopNoDest(childId);
+	var url = urlBase + "/createAndRelate?newParentName=" +encodeURIComponent(newParentName)+"&childId=" +  childId + "&currentParentId=" + currentRootId;	
+	//
+	// The main part
+	//
+	$.getJSON(url, function(result){})
+		.success(function() { 
+		})
+		.error(function() { alert("error occurred "); })
+		.complete(function() { });
+}
+
+// This part just performs frontend changes, nothing backend
+function removeTopNoDest(childId) {
+
+		$($("#" + childId)).effect( "blind",null, 5, function() { $(this).remove(); });
+
+}
+
+// This part just performs frontend changes, nothing backend
+function removeTopNew(parentId, itemElem) {
+	var target;
+	if (parentId == parentOfRootId) {
+		target = "#up";
+	} else {
+		target = "#list_"+parentId;
+	}
+	var options = { to: target, className: "ui-effects-transfer" };
+	$($(itemElem)).effect('transfer', options, 50, function() { // !!!!!!!! TODO : Wrong. remove the one specified by child ID
+		$($(itemElem)).effect( "blind",null, 5, function() { $(this).remove(); });
+	});	
+}
+
+// This part just performs frontend changes, nothing backend
+function removeTop(parentId, childId) {
+	var target;
+	if (parentId == parentOfRootId) {
+		target = "#up";
+	} else {
+		target = "#list_"+parentId;
+	}
+	var options = { to: target, className: "ui-effects-transfer" };
+	$($("#" + childId)).effect('transfer', options, 50, function() { // !!!!!!!! TODO : Wrong. remove the one specified by child ID
+		$($("#" + childId)).effect( "blind",null, 5, function() { $(this).remove(); });
+	});	
+}
+  
+// Delete. Redundant functionality
+function writeCategoryTree(root, level) {
+	var indent = "";
+	for (var i = 0; i < level; i++) {
+		indent = indent + "&nbsp;&nbsp;&nbsp;&nbsp;";
+	}
+	$("#categoriesTree").append(indent + "<a href='/md5ro/?rootId="+root.id+"' style='text-transform:capitalize;'>"+root.name + "</a>");
+	$("#categoriesTree").append("<br>");
+	
+	if (root.children != null) {
+		$.each(root.children, function(a,b){
+			writeCategoryTree(b, level + 1);
+		});
+	}
+}
+
+function moveToTop(source, button) {
+
+	var liElement = button.parentElement.parentElement.parentElement.parentElement.parentElement;
+
+	var url = liElement.getAttribute('url');
+	var categoryId = liElement.getAttribute('categoryId');
+	var created = liElement.getAttribute('created');
+	if (orderedDescending) {
+		var elem = $(liElement).remove();
+		$("#url_cards").prepend(elem);
+		// 1 more than latest timestamp
+		$.getJSON(host + ":44439/md5ro/surpassOrdinal?url=" + encodeURIComponent(url) + "&categoryId=" + categoryId + "&created=" + created,
+			function(result){
+			})
+			.success(function(data) {  
+			})
+			.error(function() {
+				alert("error occurred "); 
+			})
+			.complete(function() { });
+	} else {
+		// 1 less than earliest timestamp
+		alert('not implemented');
+	}
+}
+
+function moveToBottom(source) {
+	var idToMove = source;
+	var lastId = $("#url_cards").children().last().attr("id");
+
+	if (orderedDescending) {
+		var elem = $("#" + idToMove).remove();
+		$("#url_cards").append(elem);
+		$.getJSON(host + ":44439/md5ro/undercutOrdinal?nodeIdToChange=" + idToMove + "&nodeIdToUndercut=" + lastId, 
+			function(result){
+			})
+			.success(function(data) {  
+			})
+			.error(function() {
+				alert("error occurred "); 
+			})
+			.complete(function() { });
+	} else {
+		alert('not implemented');
+	}
+}
+
+function moveUp(source) {
+// 	var first = $("#" + source).prev().attr('id');
+// 	var second = source;
+// 	swap(first, second);
+	alert("Needs reimplementing 1");
+}
+
+function moveDown(source) {
+// 	var first = source;
+// 	var second = $("#" + source).next().attr('id');
+// 	swap(first, second);
+
+	alert("Needs reimplementing 2");
+}
+
+function swap(firstId, secondId) {
+// 	$.getJSON(host + ":44439/md5ro/swapOrdinals?firstId=" + firstId + "&secondId=" + secondId, 
+// 		function(result){
+// 		})
+// 		.success(function(data) {  
+// 			$("#" + secondId).after($("#" + firstId));
+// 		})
+// 		.error(function() { 
+// 			alert("error occurred "); 
+// 		})
+// 		.complete(function() { 
+// 		});
+
+	alert("Needs reimplementing 3");
+
+}
+
+function sendBatch() {
+	var urls = encodeURIComponent($("#urlBatchToSend").val());
+	$("#batchStatus").text("Sending new batch");	
+	$.getJSON(urlBase + "/batchInsert?rootId=" + rootId + "&urls=" + urls, function(result){})
+		.success(function(data) {
+			$("#batchStatus").text("Successfully imported batch, except for ones remaining in text box");
+			$("#urlBatchToSend").val("");
+			$("#urlBatchToSend").val(data.unsuccessful);
+		})
+		.error( function(data) {
+			alert("error occurred "); 
+		} )
+		.complete( function() {} );
+}
+
+function createArrayWithId(id) {
+	var selected = new Array();
+	selected.push(id);
+	return JSON.stringify(selected);
+}
+
+
+function getTagSelections() {
+	var selected = new Array();
+	$('#categoriesRecursive input:checked').each(function() {
+		selected.push($(this).attr('name'));
+	});
+	return JSON.stringify(selected);
+}
+
+function tagUrlWithSelections(nodeId) {
+	var selections = getTagSelections();
+	tagUrlWithCategoryIds(nodeId, selections);
+}
+
+function tagUrlWithCategoryIds(nodeId, selections, button) {
+	var url = urlBase + "/relateCategoriesToItem?nodeId=" + nodeId + "&newCategoryIds=" + encodeURIComponent(selections);
+	$.getJSON(url, 
+		function(result){
+		})
+		.success(function(data) {
+			button.style.cssText = "background-color : green";
+		})
+		.error(function() { 
+			alert("error occurred "); 
+		})
+		.complete(function() { 
+		}
+	);
+}
+
+function setParentOfRootId(nodeId) {    	
+	$.getJSON(urlBase + "/parent?nodeId=" + nodeId, function(result){
+	})
+	.success(function(data) {  
+		if (data[0] != null) {
+			parentOfRootId = data[0].id;
+			$("#up").attr("href", "/md5ro/?rootId=" + parentOfRootId);
+		}
+	})
+	.error(function() { })
+	.complete(function() { });
+}
+
+$(function() {
+	$( "#tabs" ).tabs();
+});
+
+// TODO: Remove. Unused
+function addEmbeddedVideo(id, url) {
+	$("#" + id).children().last().append("<iframe width=420 height=345 src="+url.replace("watch?v=","embed/")+"></iframe>");
+}
+
+// TODO: Remove. Unused
+function getBiggestImages() {
+	$.getJSON("http://localhost:3000/biggestImages", function(result){
+		biggestImages = result;
+		initialize();
+	});
+}
+
+function findCategoryChildren(categoriesNode, categoryIdToFind) {
+	if (categoriesNode.id == categoryIdToFind || categoriesNode.id == parseInt(categoryIdToFind)) {
+		return categoriesNode.children;
+	}
+	else if (categoriesNode.children != null) {
+		for (var i = 0; i < categoriesNode.children.length; i++ ) {
+			var category = findCategoryChildren(categoriesNode.children[i], categoryIdToFind);
+			if (category != null) {
+				return category;
+			}
+		}
+	} else {
+		return null;
+	}
+}
+
+function ITEM_TO_HTML(categories, currentCategoryId, parentCategoryId, item) {
+	return function (item) {
+		return fillCardItem(null, item, null, null, null, categories);
+	};
+}
+
+function putRootAtFront(urls, rootId) {
+	var categoryIdsUnderRoot = Object.keys(urls);
+	var first = categoryIdsUnderRoot.splice(categoryIdsUnderRoot.indexOf(rootId),1);
+	var categoryIdsUnderRootOrdered = first.concat(categoryIdsUnderRoot);
+	return categoryIdsUnderRootOrdered;
+}
+
+function getCategoryTableHtml(categoryId, categoryName, urlsInCategory) {
+		var html = "<h3>" + categoryName + " (" + categoryId + ")</h3>";
+		html += "<table id='table-"+categoryId+"' class='sortable urlTable'>";
+		html += "<thead><th>Title</th><th>URL</th></thead>";
+		html += "<tbody>";
+		for (var j = 0; j < urlsInCategory.length; j++) {
+			var item = urlsInCategory[j];
+			html += "<tr>";
+			html += "<td><div class='truncate'>" + item.title + "</div><td>";
+			html += "<td><div class='truncate'>" + item.url + "</div><td>";
+			html += "</tr>";
+		}
+		html += "</tbody>";
+		html += "</table>";
+		return html;
+}
+
+function getCategoryThumbnailsHtml(categoryId, categoryName, urlsInCategory1, limit) {
+		var urlsInCategory = urlsInCategory1.map(function(i){ if (i.ordinal < 9999999999) { i.ordinal = i.ordinal * 1000; }; return i;}).sort(function (u1, u2) {return u2.ordinal - u1.ordinal ;});
+		var urlThumbnailsHtml = "<h3><a href='/md5ro/?rootId="+categoryId+"'>" + categoryName + " (" + categoryId + ")</a></h3>";
+		for (var j = 0; j < urlsInCategory.length; j++) {
+			if (j > limit) {
+				break;
+			}
+			var item = urlsInCategory[j];
+			var displayImageUrl = getDisplayImageUrl(item);
+			urlThumbnailsHtml += "<a href="+item.url+"><img class=itemImage src='"+displayImageUrl+"' height="+IMAGE_SIZE+" onmouseenter='zoom(this)'></a>" ;
+		}
+		return urlThumbnailsHtml;
+}
+
+function getDisplayImageUrl(item) {
+	var url = item.url;
+	var specialSiteImageUrl = getSpecialSiteUrl(url);
+	if (url.match(".jpg\??") || url.match(/.*jpg/i) || url.match(".gif$")
+			|| url.match(".png\??") || url.match("images.q=tbn:")) {
+		displayImageUrl = url;
+	} else if (specialSiteImageUrl != null) {
+		displayImageUrl = specialSiteImageUrl;
+	} else if (item.user_image != null) {
+		displayImageUrl = item.user_image;
+	} else if (item.biggest_image != null) {
+		displayImageUrl = item.biggest_image;
+	} else if (url.match(".amazon.co[^/]+\/[^s]")) {
+		var asin = url.replace(/.+((dp)|(product))\/([^\/?]+)[\/?].*/,'$4');
+		asin = asin.replace(/.*dp./,'');
+		asin = asin.replace(/.*gp.aw.d./, '');
+		asin = asin.replace(/.ref_?=.*/, '');
+		asin = asin.replace(/.*offer-listing./, '');
+		var productImageUrl = 'http://images.amazon.com/images/P/'+asin+'.01.LZZZZZZZ.jpg';
+		displayImageUrl = productImageUrl;
+	} else {
+		displayImageUrl = "http://free.pagepeeker.com/v2/thumbs.php?size=x&url="
+				+ encodeURIComponent(url);
+	}
+	return displayImageUrl;
+}
+
+function getImageForUrl(url) {
+	var imageUrl;
+	if (url.match(".jpg\??") || 
+		url.match(/.*jpg/i) ||
+		url.match(".gif$") || 
+		url.match(".png\??") || 
+		url.match("images.q=tbn:")) {
+		imageUrl = url;
+	} else {
+		var specialSiteImageUrl = getSpecialSiteUrl(url);
+		if (specialSiteImageUrl == null) {
+			imageUrl = "http://free.pagepeeker.com/v2/thumbs.php?size=x&url="+encodeURIComponent(url);
+		} else {
+			imageUrl = specialSiteImageUrl;
+		}
+	} 
+	return imageUrl;
+}
+
+function getSpecialSiteUrl(url) {
+	var imageUrl;
+	if (url.match("youtube.com/watch")) {
+		var youtubeId = url.replace(/^https?:..www.youtube.com.watch.*v=([^&]+).*/g,'$1');
+		imageUrl = "http://img.youtube.com/vi/"+youtubeId+"/0.jpg";	
+	} else if (url.match("dailymotion.com/video")) {
+		var youtubeId = url.replace(/^http.*video.([^?]+)(.*)/g,'$1');
+		imageUrl = "http://dailymotion.com/thumbnail/video/"+youtubeId ;			
+	}
+	// Too unreliable
+//	else if (url.match(".amazon.co[^/]+\/[^s]")) {
+//		var asin = url.replace(/.+((dp)|(product))\/([^\/?]+)[\/?].*/,'$4');
+//		asin = asin.replace(/.*dp./,'');
+//		asin = asin.replace(/.*gp.aw.d./, '');
+//		asin = asin.replace(/.ref_?=.*/, '');
+//		asin = asin.replace(/.*offer-listing./, '');
+//		var productImageUrl = 'http://images.amazon.com/images/P/'+asin+'.01.LZZZZZZZ.jpg';
+//		imageUrl = productImageUrl;
+//	} 
+	else {
+		imageUrl = null;
+	}
+	return imageUrl;
+}
+
+function getProductsHtml(categoryId, categoryName, urlsInCategory) {
+		var productsHtml = "<h3>" + categoryName + " (" + categoryId + ")</h3>";
+		for (var j = 0; j < urlsInCategory.length; j++) {
+			var item = urlsInCategory[j];
+			
+			if (item.url.match(".amazon.co[^/]+\/[^s]")) {
+				productsHtml += "";
+				var asin = item.url.replace(/.+((dp)|(product))\/([^\/?]+)[\/?].*/,'$4');
+				asin = asin.replace(/.*dp./,'');
+				asin = asin.replace(/.*gp.aw.d./, '');
+				asin = asin.replace(/.ref_?=.*/, '');
+				asin = asin.replace(/.*offer-listing./, '');
+				var productImageUrl = 'http://images.amazon.com/images/P/'+asin+'.01.LZZZZZZZ.jpg';
+				var imageTag = ("<img class=itemImage src='"+productImageUrl+"' height='280'>");
+				productsHtml += "<a href='" + item.url +"'>" + imageTag + "</a>\n";
+				hasScreenshot = true;
+			} else {
+				productsHtml += item.url + "<br>";
+			}
+		}
+		return productsHtml;
+}
+
+function getCategoryListHtml(categoryId, categoryName, urlsInCategory) {
+		var urlThumbnailsHtml = "<h3>" + categoryName + " (" + categoryId + ")</h3>";
+		for (var j = 0; j < urlsInCategory.length; j++) {
+			var item = urlsInCategory[j];
+			urlThumbnailsHtml += item.title + " (<a href='" + item.url +"'>" + item.url + "</a>)<br><br>";
+		}
+		return urlThumbnailsHtml;
+}
+
+function fillCardItem(resultRowNumber, field, result, limit, biggestImages, categories) {
+	if (resultRowNumber != null && result != null && limit != null) {	
+		if (resultRowNumber > limit && resultRowNumber < result.length - 10)  {
+			return;
+		}
+	}
+	
+	//var one = $("<td style='background-color:'>1");
+	var two = $("<td style='background-color:' >2");
+	var three = $("<td style='background-color:'>3");
+	var four = $("<td id='categoryButtonsCell' style='background-color:'>4");
+	var five = $("<td style='background-color:'>5");
+	var six = $("<td style='background-color:'>6");
+	
+	var listItem;
+	var table = $("<table/>");
+	{
+		table.attr('width','100%');
+	
+		{
+			var row1 = $("<tr/>");
+			table.append(row1);
+			row1.append(two);
+			row1.append(three);
+		}
+	
+		{
+			var row2 = $("<tr/>");
+			table.append(row2);
+			row2.append(four);
+			row2.append(five);
+			row2.append(six);
+		}
+	
+		{
+			listItem = $("<li>").attr('id',field.id).attr("class",'buttonize').attr('style','background-color:#FDFD96')
+				.attr('url',field.url)
+				.attr('created',field.created)
+				.attr('categoryId',rootId);
+			listItem.append(table);
+			//$("#url_cards").append(listItem);
+		}
+	
+	}
+	
+	{
+		var urlElements = field.url.match(/^http:\/\/[^\/]+/);
+		if (urlElements != null) {
+			var site = urlElements[0];
+			two.append("<img src='" + site + "/favicon.ico' width=18 onerror=\"this.style.display='none'\" > ");
+		}
+		if (field.created < 9999999999) {
+			field.created = field.created * 1000;
+		} 
+		var dddd = (new Date(field.created)).toString();
+		two.append("<font style=\"color: #002366 ; font-weight : normal; font-size: medium\">"+ field.title + "</font><br><sub><font style=\"color: #436B95\"><a href='" +field.url+"'>"+field.url+"</a></font><br>"+field.created+" - "+dddd+"<br>"+"</sub>");
+	}
+	
+	var imageCell = createImageCell(field, biggestImages, null, resultRowNumber);
+	three.append(imageCell);
+	
+	if (field.parentId != null) {
+		six.append("Parent ID: " + field.parentId);
+	}
+	
+	{
+		var buttonCell = two;
+		buttonCell.append("<br>");
+		buttonCell.append("<br>");
+		buttonCell.append("<input type=button class='genericButton' value=Tag onClick='tagUrlWithSelections("+field.id+")'><br>");			
+		buttonCell.append("<input type=button class='genericButton' value='Wrong Category' onClick='relateNew("+parentOfRootId+","+rootId+",this)'><br>");
+		buttonCell.append("<br>");
+		buttonCell.append("<input type=button class='genericButton' value='Change Image' onClick='changeImage("+field.id+",this,\"" +field.url+ "\")'><br>");
+		buttonCell.append("<input type=button class='genericButton' value='Remove Custom Image' onClick='removeImage("+field.id+",this,\"" +field.url +"\"," + rootId + ")'><br>");
+		buttonCell.append("<br>");
+		buttonCell.append("<br>");
+		buttonCell.append("<input type=button class='genericButton' value='Top' onclick='moveToTop("+field.id+", this)'><br>");
+		buttonCell.append("<input type=button class='genericButton' value='Move Up' onclick='moveUp("+field.id+")'><br>");
+		buttonCell.append("<input type=button class='genericButton' value='Move Down' onclick='moveDown("+field.id+")'><br>");
+		buttonCell.append("<input type=button class='genericButton' value='Bottom' onclick='moveToBottom("+field.id+")'><br>");
+		buttonCell.append("<sub>"+field.id+"</sub>");
+	}
+	
+	{
+		var categoryButtons = four;
+		if (categories && categories.length == 0) {
+			// TODO: 'categories' may not yet be set. Really we should add these buttons in the callback where "categories" is set. But we don't know the field ID unless we wait until the item results load
+			debugger;
+		} 
+		if (categories) {
+			var html = categories.sort(COMPARE_OBJ_NAME).map(CATEGORY_TO_BUTTON(field.id, rootId)).join("&nbsp;");
+			categoryButtons.append(html);
+			// TODO: would be nice to use map and fold
+			//$.each(categories, function(a,binding,c){
+			//	categoryButtons.append("<input type=button class='genericButton' value='"+binding.name+" ("+ binding.key+")' onclick='relate("+binding.id+","+field.id+","+rootId+")'>&nbsp;");
+			//});
+		}
+		categoryButtons.append("<br>");
+		categoryButtons.append("<br>");
+		categoryButtons.append("<input type=button class='genericButton' value='NEW' onclick='createAndRelate("+field.id+","+rootId+")'>&nbsp;");
+	}
+	
+	{
+		five.append("<input type=button class='genericButton' value='I own this' onclick='tagUrlWithCategoryIds("+field.id+",createArrayWithId("+37373+"), this)'><br>");
+		five.append("<input type=button class='genericButton' value='Buy this' onclick='tagUrlWithCategoryIds("+field.id+",createArrayWithId("+221013+"), this)'><br>");
+		five.append("<input type=button class='genericButton' value='Download this' onclick='tagUrlWithCategoryIds("+field.id+",createArrayWithId("+221026+"), this)'><br>");
+		five.append("<input type=button class='genericButton' value='Downloaded this' onclick='tagUrlWithCategoryIds("+field.id+",createArrayWithId("+ 322410 +"), this)'><br>");
+		five.append("<input type=button class='genericButton' value='Watched' onclick='tagUrlWithCategoryIds("+field.id+",createArrayWithId("+37652+"), this)'><br>");
+		five.append("<input type=button class='genericButton' value='Watch this' onclick='tagUrlWithCategoryIds("+field.id+",createArrayWithId("+37567+"), this)'><br>");
+		five.append("<input type=button class='genericButton' value='Documentary' onclick='tagUrlWithCategoryIds("+field.id+",createArrayWithId("+37659+"), this)'><br>");
+
+		five.append("<input type=button class='genericButton' value='Find in Library' onclick='tagUrlWithCategoryIds("+field.id+",createArrayWithId("+ 608592+"), this)'><br>");
+		five.append("<input type=button class='genericButton' value='Priority 3' onclick='tagUrlWithCategoryIds("+field.id+",createArrayWithId("+38907+"), this)'><br><br>");
+		five.append("<input type=button class='genericButton' value='Save Video' onclick='downloadVideo("+field.id+",\""+ field.url +"\", this)' style='background-color : "+getDownloadedVideoColor(field.downloaded_video)+"'><br>");
+		
+	}	
+	return listItem[0].outerHTML;
+}
+
+
+function removeImage(id, button, url, parentId) {
+	// TODO : prepopulate with the computed thumbnail
+	$.getJSON(urlBase + '/removeImage?id=' + id + "&parentId=" + parentId, 
+	        function(result){
+	                console.debug(result);
+	        })
+	        .success(function(data) {
+	                button.style.cssText = "background-color : green";
+	        })
+	        .error(function() { 
+	                alert("error occurred "); 
+	        })
+	        .complete(function() { 
+	        }
+	);
+}
+
+function changeImage(id, button, url) {
+	// TODO : prepopulate with the computed thumbnail
+	var newImageUrl = prompt("Enter a new image URL:", prepopulatedImage(url));
+	if (newImageUrl.length > 0) {
+		$.getJSON(urlBase + '/updateImage?linkUrl='+encodeURIComponent(url)+'&url=' + encodeURIComponent(newImageUrl) + "&categoryId=" + rootId, 
+			function(result){
+				console.debug(result);
+			})
+			.success(function(data) {
+				button.style.cssText = "background-color : green";
+			})
+			.error(function() { 
+				alert("error occurred "); 
+			})
+			.complete(function() { 
+			}
+		);
+	}
+}
+
+// This can be refactored, but whatever
+function prepopulatedImage(url) {
+
+	var prepopulated = "";
+
+	if (url.match(".jpg\??") || 
+		url.match(/.*jpg/i) ||
+		url.match(".gif$") || 
+		url.match(".png\??") || 
+		url.match("images.q=tbn:")) {
+		
+		// nothing to do
+
+	}
+	if (url.match("youtube.com")) {
+		if (url.match("youtube.com/watch")) {
+			var youtubeId = url.replace(/^https?:..www.youtube.com.watch.*v=([^&]+).*/g,'$1');
+			prepopulated = "http://img.youtube.com/vi/"+youtubeId+"/0.jpg";
+			
+		}
+		
+	} else if (url.match("dailymotion.com/video")) {
+			var youtubeId = url.replace(/^http.*video.([^?]+)(.*)/g,'$1');
+			prepopulated = "http://dailymotion.com/thumbnail/video/"+youtubeId;
+		
+	} else if (url.match(".amazon.co[^/]+\/[^s]")) {
+
+		var asin = url.replace(/.+((dp)|(product))\/([^\/?]+)[\/?].*/,'$4');
+		asin = asin.replace(/.*dp./,'');
+		asin = asin.replace(/.*gp.aw.d./, '');
+		asin = asin.replace(/.ref_?=.*/, '');
+		asin = asin.replace(/.*offer-listing./, '');
+		prepopulated = 'http://images.amazon.com/images/P/'+asin+'.01.LZZZZZZZ.jpg';
+	}
+	return prepopulated;
+}
+
+function downloadVideo(id, url, buttonElement) {
+	$.getJSON(urlBase + "/downloadVideo?url=" + encodeURIComponent(url) + "&id=" + id, function(result) {
+		buttonElement.style.backgroundColor = getDownloadedVideoColor(true);
+		console.debug("downloaded");
+	});
+	buttonElement.style.backgroundColor = "orange";
+}
+
+function CATEGORY_TO_BUTTON(itemId, currentCategoryId, categoryNode) {
+	return function(categoryNode) {
+		return "<input type=button class='genericButton' "
+			+ " value='"+categoryNode.name+" ("+ categoryNode.key+")'"
+			+ " onclick='relateNew("+categoryNode.id+","+currentCategoryId+", this)'>"
+			+ "";
+	};
+}
+
+function COMPARE_OBJ_NAME(categoryNode1, categoryNode2) {
+	return categoryNode1.name.toUpperCase().charCodeAt(0) - categoryNode2.name.toUpperCase().charCodeAt(0);
+}
+
+function getCategoriesUnderID2(categoryTree, categoryId) {
+	if (categoryTree.id == categoryId) {
+		return categoryTree.children;
+	} else if (categoryTree.children) {
+		for (var i = 0; i < categoryTree.children.length; i++) {
+			var child = categoryTree.children[i];
+			if (child) {
+				var match = getCategoriesUnderID2(child, categoryId);
+				if (match) {
+					return match;
+				}
+			}
+		}
+		return null;// Do not return an empty list here, the recursive logic will break.
+	} else {
+		return null;
+	}
+}
+
+function getCategoriesUnderID(categories, categoryId) {
+	for (var i = 0; i < categories.length; i++) {
+		if (categories[i].id == categoryId) {
+			return categories[i].children;
+		} else {
+			if (categories[i].children) {
+				var ret = getCategoriesUnderID(categories[i].children,categoryId);
+				if (ret) {
+					return ret;
+				}
+			}
+		}
+	}
+	return [];
+}
+
+function configureKeyBindings() {
+	if (categories != null) {
+		$.each(categories, function(a,binding,c){
+			if (binding.key == 'null') {
+				$("#keys").append("#");
+				// Don't remove the "null" otherwise we'll assign hash to this category
+			}
+			$("#keys").append(binding.key + "=" + binding.name +" # node " + binding.id + "\n");
+			$("#keyLinks").append("<li style='text-transform:capitalize;' id='list_"+binding.id+"'><a href='/md5ro/?rootId=" + binding.id+ "'>" + " " + binding.name + " (<span id='count_"+binding.id+"'></span>)</a></li>");
+			$("#count_" + binding.id).text(binding.count);
+			$(window).keypress(function(event) {
+				if ($("#keys").is(":focus")) {
+					return;
+				}
+				if (binding.key == String.fromCharCode(event.which)) {
+					var parentId = binding.id;
+					var childId = $("#url_cards").children()[0].id;
+					var currentRootId = rootId;
+					relate(parentId, childId, currentRootId);
+				}
+			});			
+		});
+	}
+	$(window).keypress(function(event) {
+		alert("Needs reimplementing: key bindings");
+// 		var key = String.fromCharCode(event.which);
+// 		if (('_' == key)||('-'==key) ||('j'==key)|| ('n' == key) ) {
+// 			var idOfTop = $("#url_cards").children()[0].id;
+// 			moveToBottom(idOfTop);
+// 		}
+// 		if (String.fromCharCode(event.which) == '<') {
+// 			var parentId = parentOfRootId;
+// 			var childId = $("#url_cards").children()[0].id;
+// 			var currentRootId = rootId;
+// 			relate(parentId, childId, currentRootId);
+// 		}
+// 		if (String.fromCharCode(event.which) == '>') {
+// 			console.debug("remove from list (deal with it later)");
+// 		}
+	});
+}
+//----------------------------------------------------------------------------------------
+// D3 Visualization
+//----------------------------------------------------------------------------------------
+
+function drawVisualization(data) {
+	console.debug(data);
+	//var ua = navigator.userAgent;
+	var forceDirectedGraph = new $jit.ForceDirected({
+		injectInto: 'infovis',
+		Node: {
+			overridable: true
+		},
+		Edge: {
+			overridable: true,
+		},
+		Label: {  
+			type: 'Native', //Native or HTML  
+			size: 5,  
+			style: 'bold'  
+		  },
+		Navigation: {  
+			enable: true,  
+			//Enable panning events only if we're dragging the empty  
+			//canvas (and not a node).  
+			panning: 'avoid nodes',  
+			zooming: 10 //zoom speed. higher is more sensible  
+		},
+	});
+
+	var listOfNodes;
+  
+	{
+		var adjacenciesList = [];
+		for (var i = 0; i < data.children.length; i++) {
+			adjacenciesList[i] = { "nodeTo" : data.children[i].id };
+		}
+		
+		
+		listOfNodes = [{
+		
+			id:45,
+			data : {
+				"$color"		:	"#C74243",
+				"$type"			:	"star",
+				"$dim"			: 	17
+			},
+			adjacencies : adjacenciesList
+		}];
+		
+		addNodes(data, listOfNodes, 0);
+	}
+
+	forceDirectedGraph.loadJSON(listOfNodes); 
+
+	forceDirectedGraph.computeIncremental({
+		onComplete: function(){
+			forceDirectedGraph.animate(function(){ });
+		}
+	});
+	 
+}
+
+function addNodes(data, listOfNodes, level1) {
+	if (data.children == null) {
+		return;
+	}
+	++level1;
+	for (var i = 0; i < data.children.length; i++) {
+		var category = data.children[i];
+		listOfNodes.push({ 
+			id : category.id,
+			name : category.name,
+			"level" : level1,
+			data : {
+				"$color"		:	getColorForLevel(level1),
+				"$type"			:	getShapeForLevel(level1),
+				"$dim"			: 	4
+			},
+			adjacencies : getAdjacencies(category),
+		});
+		
+		addNodes(category, listOfNodes, level1);
+	}
+}
+
+
+function getColorForLevel(level) {
+	if (level == 1) {
+		return "red";
+	}
+	if (level == 2) {
+		return "green";
+	}
+	if (level == 3) {
+		return "blue";
+	}
+	return "yellow";
+}
+
+function getShapeForLevel(level) {
+	if (level == 1) {
+		return "star";
+	}
+	if (level == 2) {
+		return "square";
+	}
+	if (level == 3) {
+		return "triangle";
+	}
+	return "circle";
+}
+
+function getAdjacencies(category) {
+	var adjacenciesList = [];
+	
+	if (category.children !=null) {
+		for (var i = 0; i < category.children.length; i++) {
+			adjacenciesList[i] = { "nodeTo" : category.children[i].id };
+		}
+	}
+	return adjacenciesList;
+}
+
+
+function getCategoryNamesMap(categoriesRecursive) {
+	var categoriesMap = {};
+	if (categoriesRecursive.id == null) {
+		debugger;
+	}
+	categoriesMap[categoriesRecursive.id] = categoriesRecursive.name;
+	for (var category in categoriesRecursive.children) {
+		var categoryNames = getCategoryNamesMap(categoriesRecursive.children[category]);
+		categoriesMap  = $.extend(true, categoriesMap, categoryNames);
+//                        categoriesMap.concat(categoryNames);
+	}
+	return categoriesMap;
+}
+
+function openHtmlTextInNewTab() {
+	var newWin = open('url', '_blank', '');
+	newWin.document.write($("#htmlText").val());
+	newWin.document.title = document.title;
+}
+
+
+
+</script>
+<style type="text/css">
+
+.itemImage {
+	padding : 10px;
+}
+
+.ui-widget {
+	/* Reduces JQUery's default font size */
+    font-size: 90%;
+}
+
+body {
+        background-color : #fcffdd;
+}
+
+.ui-tabs .ui-tabs-panel {
+	background-color : #fcffdd;
+}
+
+circle.node {
+  cursor: pointer;
+  stroke: #000;
+  stroke-width: .5px;
+}
+
+line.link {
+  fill: none;
+  stroke: #9ecae1;
+  stroke-width: 1.5px;
+}
+
+.truncate{
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    max-width: 400px;
+    max-height: 51px;
+    text-align: left;
+}
+
+//.urlTable.tbody.tr.td {
+    text-align: left;
+//}
+</style>
+<style>
+.ui-effects-transfer { border: 2px dotted gray; }
+
+body{
+	font-family:Verdana; font-size: 12px;
+	//text-shadow:4px 4px #eeeeee;
+}
+
+.genericButton {
+	background-color: #FDFD96;
+	border-radius: 28px;
+}
+.genericButton:hover {
+	border-radius: 1px;
+}
+
+.tooBig {
+	width: 200px; 
+	height: 100px; 
+	overflow-y: scroll;
+}
+
+.buttonize {
+	//padding:20px;
+	margin:25px;
+	border-radius: 15px;
+	box-shadow:
+		inset 0 0 9px #222222, 
+		10px 10px 14px #999999;// internal and external shadow
+	background-color:#E6FAD2
+}
+
+.screenshot {
+	padding:0px;
+	margin:0px;
+	border-radius: 15px;
+	box-shadow:
+		inset 0 0 9px #222222, 
+		0px 0px 0px #999999;// internal and external shadow
+	/* background-color:#E6FAD2*/
+}
+</style>
+
+<script language="javascript" type="text/javascript" src="http://philogb.github.io/jit/static/v20/Jit//jit-yc.js"></script>
+<link type="text/css" href="http://philogb.github.io/jit/static/v20/Jit/Examples/css/base.css" rel="stylesheet" />
+
+</head>
+<body onload='initialize()' style="background-color : #fcffdd;">
+
+<br>
+<script> 
+    $(function(){
+      $("#menubar").load("http://netgear.rohidekar.com/menu.html"); 
+    });
+</script>
+<div id="menubar"></div>
+
+	<br>
+	<table>
+		<tr><td>
+			<div id="queue"></div>
+		</td><td>
+			<table style="width: 100%;table-layout: fixed;">
+				<tr>
+					<td width="25%" valign=top>
+
+						<a id="up">Up</a>
+						<a href="http://netgear.rohidekar.com:44442/md5ro/dumpurls">Export</a>
+						<!--
+						<strike><a href="http://netgear.rohidekar.com/launcher">Netcat Query</a></strike>
+						-->
+						<div id=rootColor class="buttonize">
+							<center>
+								<br><h2><span id="category"></span>(<span id="count"></span>)<br></h2><br>
+							</center>
+						</div>
+
+						<!--Favorites-->
+						<div id='favorites' class='buttonize'>
+							<a href='/md5ro/?rootId=29196' >Products & Services</a><br>
+							<a href='/md5ro/?rootId=221013'>Buy these (or considering buying)</a><br>
+							<a href='/md5ro/?rootId=230184'>Bought</a><br>
+							<a href='/md5ro/?rootId=37373'> Owned</a><br>
+							<a href='/md5ro/?rootId=608592'>Library</a><br><br>
+                                                        <a href='/md5ro/?rootId=610307'>Audiobooks of interest</a><br><br>
+
+							<a href='/md5ro/?rootId=469990' >Home (Photos)</a><br>
+							<a href='/md5ro/?rootId=37658' >Youtube Playlists (videos)</a><br>
+							<a href='/md5ro/?rootId=37567'>Watch these</a><br>
+							<a href='/md5ro/?rootId=37652'>Watched</a><br>
+							<a href='/md5ro/?rootId=322647'>Atletico Madrid Documentary</a><br><br>
+
+							<a href='/md5ro/?rootId=221026'> Download</a><br>
+							<a href='/md5ro/?rootId=37581'> Download these</a><br>
+							<a href='/md5ro/?rootId=322410'> Downloaded</a><br><br>
+
+							<a href='/md5ro/?rootId=38907'>Priority 3</a><br>
+							<a href='/md5ro/?rootId=29172'>Other</a><br>
+							<a href='/md5ro/?rootId=641426'>Autism / Aspergers</a><br>
+						</div>
+
+						<ol id="keyLinks"  class="buttonize" style="" ></ol>
+						<font color=grey><div id="status">Init</div></font>
+						<textarea id="keys" cols="34" rows="20px" class="buttonize"></textarea>
+						<!-- I don't see a good reason to have both keys and categoriesTree. Hopefully JSON Tree
+							will replace both -->
+						<br>Tree of Categories / Category tags<br>
+						<div id="categoriesRecursive"  class="buttonize tooBig">
+						<!--<div id="categoriesTree" class="buttonize tooBig" ></div>-->
+						<br><br>
+
+						<br><br>
+						</div>
+						
+					</td>
+					
+					<td width="75%" style="vertical-align: top">
+
+
+
+<br>
+<br>
+						<div id="tabs">
+							  <ul>
+								<li><a href="#tabs-2">Cards</a></li>
+								<li><a href="#tabs-1">Grid/Thumbnails</a></li>
+							  </ul>
+							  <div id="tabs-2">
+								  <ol id="url_cards"></ol>
+							  </div>
+							  <div id="tabs-1">
+								  <ol id="url_thumbnails"></ol>
+							  </div>
+						</div>
+					</td>
+				</tr>
+				<tr>
+					<td></td>
+					<td>
+					</td>
+				</td>
+			</table>	
+		</td></tr>
+	<table>
+<br>
+
+<button type=button onclick='$("#d3").toggle()'>Show visualization</button>
+<div id="d3" style="background-color:grey"></div>
+<!--<div id="infovis" style="background-color : black"></div>    -->
+
+<input type="button" value="Add URLs" onclick="sendBatch()" /><br>
+<div id="batchStatus"></div>
+<textarea id="urlBatchToSend" rows="20" cols="100"></textarea>
+
+<textarea cols=200>
+javascript:window.location.href = 'http://netgear.rohidekar.com/md5ro/stash2.html?url=' + encodeURIComponent(document.URL) + '&nodeId=45'  ;
+/* main: 45, product: 29196, video: 37658, tech: 46, other: 29172 */
+</textarea>
+<br>
+<br>
+<br>
+</body>
+</html>

@@ -1,5 +1,6 @@
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import org.apache.commons.io.FileUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -24,7 +25,7 @@ import com.google.common.io.Files;
 
 public class Md5RoList {
 
-	private static final String QUEUE_DIR = "/home/sarnobat/sarnobat.git/db/md5ro/";
+	private static final String QUEUE_DIR = System.getProperty("user.home") + "/sarnobat.git/db/md5ro/";
 	private static final String QUEUE_FILE_TXT_DELETE = QUEUE_DIR + "/md5_files.txt";
 
 	// This only gets invoked when it receives the first request
@@ -37,14 +38,16 @@ public class Md5RoList {
 		@Produces("application/json")
 		public Response getUrls(@QueryParam("rootId") Integer iRootId)
 				throws JSONException, IOException {
+				
+			System.out.println("" + QUEUE_FILE_TXT_DELETE);
 			checkNotNull(iRootId);
 
 			try {
-				JSONObject retVal1 = new JSONObject();
+				//JSONObject retVal1 = new JSONObject();
 
 
 				return Response.ok().header("Access-Control-Allow-Origin", "*")
-						.entity(retVal1.toString()).type("application/json")
+						.entity(FileUtils.readFileToString(Paths.get(QUEUE_FILE_TXT_DELETE).toFile(), "UTF-8")).type("text/plain")
 						.build();
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -74,7 +77,7 @@ public class Md5RoList {
 							.collect(Collectors.toList());
 			System.out.println("Md5RoList.main() " + lines);
 			JdkHttpServerFactory.createHttpServer(new URI(
-					"http://localhost:4490/"), new ResourceConfig(
+					"http://localhost:4485/"), new ResourceConfig(
 					YurlResource.class));
 			// Do not allow this in multiple processes otherwise your hard disk
 			// will fill up
