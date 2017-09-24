@@ -108,9 +108,13 @@ function copy(button) {
 	var filePath = button.parentElement.children[0].src.replace(fileServerPrefix, '');
 	var parentDirPath = getParentPath(filePath);
 	return copyFileToFolder(filePath, 
-//		'/media/sarnobat/Unsorted/new/Photos/iPhone/' 
-		'/media/sarnobat/3TB/trash/'
-//		'/home/sarnobat/trash/' 
+//		'/media/sarnobat/Unsorted/new/Photos/iPhone/'  // does not work
+		'/media/sarnobat/3TB/new/move_to_unsorted/iphone/'
+//		'/media/sarnobat/Large/trash/' // works
+//		'/media/sarnobat/3TB/trash/' // works
+//		'/home/sarnobat/trash/'  // works
+//		'/media/sarnobat/e/trash/' // works
+//		'/media/sarnobat/Large/new/photos/iPhone/' // symlink to Unsorted, does not work
 		+subdirSimpleName, button);
 }
 
@@ -120,7 +124,7 @@ function getParentPath(filePath) {
 
 function copyFileToFolder(filePath, destinationDirPath, button) {
 //debugger;
-        $.getJSON(host + ":44451/cmsfs/copyToFolder?filePath="+encodeURIComponent(filePath) + "&destinationDirPath=" + encodeURIComponent(destinationDirPath), function(response) {
+        $.getJSON(host + ":44486/md5ro/copyToFolder?filePath="+encodeURIComponent(filePath) + "&destinationDirPath=" + encodeURIComponent(destinationDirPath), function(response) {
                 $(button).css('background-color','green');
                 debugger;
         });
