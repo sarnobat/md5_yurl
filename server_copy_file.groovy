@@ -2,6 +2,7 @@ import static com.google.common.base.Predicates.not;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.StringUtils;
+
 import java.util.*;
 import java.io.File;
 import java.io.FileInputStream;
@@ -61,6 +62,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.glassfish.jersey.jdkhttp.JdkHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -141,6 +143,8 @@ public class Md5RoCopyFile {
 				e.printStackTrace();
 				throw new RuntimeException(e);
 			}
+// TODO: put this in a separate thread
+			
 			return Response.ok()
 					.header("Access-Control-Allow-Origin", "*")
 					.entity(new JSONObject().toString(4)).type("application/json")
@@ -1155,6 +1159,23 @@ System.out.println("DirObj::getFiles() - " + path);
 				Files.copy(sourceFilePath, destinationFilePath);// By default, it won't
 													// overwrite existing
 				System.out.println("Success: copied file now at " + destinationFilePath.toAbsolutePath());
+				new Thread() {
+					@Override
+					public void run() {
+						try {
+							FileInputStream fis = new FileInputStream(destinationFilePath.toFile());
+							String md5 = org.apache.commons.codec.digest.DigestUtils.md5Hex(fis);
+							fis.close();
+				String event = md5 + "::" + destinationFilePath.toAbsolutePath() .toString() + "\n";
+				FileUtils.writeStringToFile(Paths.get(Md5RoCopyFile.file).toFile(),event, "UTF-8", true);
+				System.out.println("Event reorded: " + event);
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}
+
+				}.start();
+			
 			} catch (IOException e) {
 				e.printStackTrace();
 				throw new IllegalAccessError("Copying did not work");
@@ -1255,6 +1276,7 @@ System.out.println("DirObj::getFiles() - " + path);
 
 	@Deprecated
 	private static final int fsPort = 4452;
+	public static  String file ;
 
 	public static void main(String[] args) throws URISyntaxException, IOException, KeyManagementException, UnrecoverableKeyException, NoSuchAlgorithmException, KeyStoreException, CertificateException, InterruptedException {
 		System.out.println("start");
@@ -1264,6 +1286,7 @@ boolean b = Files.exists(Paths.get("/Unsorted/new/images/tumblr_m62cxfJDjg1qgyts
 		System.out.println("Note: 4486 is hardcoded, I can't get the command line args to work inside docker.");
 		
 		String port = args[0];
+		file = args[1];
 		_parseOptions: {
 
 		  Options options = new Options()

@@ -39,8 +39,15 @@ function initialize() {
 	
 	$.when(
 		$.ajax(host + ":44485/md5ro/uncategorized?rootId=" +rootId), 
-		$.ajax(host + "/md5ro/iphone_categories.txt"))
-	.done(function(a1, a2){
+		$.ajax(host + "/md5ro/iphone_categories.txt"),
+		$.ajax(host + "/md5ro/copy_events.txt")
+		)
+	.done(function(a1, a2, copyEvents){
+		
+		var alreadyCopied = {};
+		copyEvents[0].split('\n').forEach(function(line){
+			alreadyCopied[line.split('::')[0]] = line.split('::')[1];
+		});
 		
 		var folders = a2[0].split('\n');
 		
@@ -53,12 +60,26 @@ function initialize() {
 			return acc + "&nbsp;" + tag;
 		}, "");
 		
-		var images = shuffle(a1[0].split('\n')).splice(0, 50);
+		var images = 
+		//shuffle(
+		a1[0].split('\n')
+		//)
+		.splice(0, 50);
 		
 		$("#url_cards").append(
 			"<ol>"
-			+ images.map(function(item) { 
+			+ images.filter(function(line) {
+				var pair = line.split('::');
+				var md5 = pair[0];
+				if (alreadyCopied.hasOwnProperty(md5)) {
+					return false;
+				} else {
+					return true;
+				}
+			})
+			.map(function(item) { 
 				var pair = item.split('::');
+				var md5 = pair[0];
 				var filePath = pair[1];
 				return  { 
 					md5 : pair[0], 
@@ -126,9 +147,11 @@ function copyFileToFolder(filePath, destinationDirPath, button) {
 //debugger;
         $.getJSON(host + ":44486/md5ro/copyToFolder?filePath="+encodeURIComponent(filePath) + "&destinationDirPath=" + encodeURIComponent(destinationDirPath), function(response) {
                 $(button).css('background-color','green');
-                debugger;
+                //debugger;
+				// TODO: remove element (like with move)
+                button.parentElement.remove();
         });
-		// TODO: remove element (like with move)
+        $(button).css('background-color','orange');
 }
 
 function shuffle(array) {
