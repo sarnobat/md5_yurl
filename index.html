@@ -74,52 +74,58 @@ function initialize() {
 		
 		$("#url_cards").append(
 			"<ol>"
-			+ shuffle(images.filter(function(line) {
-				var pair = line.split('::');
-				var md5 = pair[0];
-				if (alreadyCopied.hasOwnProperty(md5)) {
-					return false;
-				} else {
-					return true;
-				}
-			})
-			.filter(function(line) {
-				var pair = line.split('::');
-				var filePath = pair[1];
+			//+ shuffle(
+				+ images.filter(function(line) {
+					var pair = line.split('::');
+					var md5 = pair[0];
+					if (alreadyCopied.hasOwnProperty(md5)) {
+						return false;
+					} else {
+						return true;
+					}
+				})
+				.filter(function(line) {
+					var pair = line.split('::');
+					var filePath = pair[1];
 				
-				var matchesVideo = filePath.match(/.*((mp4)|(webm)|(mov)|(mkv)|(flv)|(avi)|(mts))/gi);
-				var matchesTxt = filePath.match(/.*((txt)|(log))/gi);
-				if (matchesVideo != null) {
-					return false;
-				} else if (matchesTxt !=null) {
-					return false;
-				} else {
-					return true;
-				}
-			})
-			.slice(0,50)
-			.map(function(item) { 
-				var pair = item.split('::');
-				var md5 = pair[0];
-				var filePath = pair[1];
-				return  { 
-					md5 : pair[0], 
-					filepath : filePath,
-					url : 'http://netgear.rohidekar.com:44452' + filePath,
-				};
-			})).map(function(fileObj) {
+					var matchesVideo = filePath.match(/.*((mp4)|(webm)|(mov)|(mkv)|(flv)|(avi)|(mts))/gi);
+					var matchesTxt = filePath.match(/.*((txt)|(log))/gi);
+					var ignore = filePath.match(/.*\.((jp2)|(dat))/gi);
+					if (matchesVideo != null) {
+						return false;
+					} else if (matchesTxt !=null) {
+						return false;
+					} else if (ignore !=null) {
+						return false;
+					} else {
+						return true;
+					}
+				})
+				.slice(0,50)
+				.map(function(item) { 
+					var pair = item.split('::');
+					var md5 = pair[0];
+					var filePath = pair[1];
+					return  { 
+						md5 : pair[0], 
+						filepath : filePath,
+						url : 'http://netgear.rohidekar.com:44452' + filePath,
+					};
+				})
+			//)
+			.map(function(fileObj) {
 				var cardHtml = "";
-				cardHtml += "<img src='" + fileObj.url + "' height=250><br>" + fileObj.filepath+"<br>";
+				cardHtml += "<img src='" + fileObj.url + "' height=250><br><textarea>" + fileObj.filepath+"</textarea><br><hr width=500><br>";
 				return cardHtml;
 			}).map(function(item) {
 				return "<li class='buttonize' style='background-color: #FDFD96'>" 
 					+ "<table>"
 					+ "<tr>"
 					+ "<td>"
-					+ item 
+					+ buttonsHtml
 					+ "</td>"
 					+ "<td>"
-					+ buttonsHtml
+					+ item 
 					+ "</td>"
 					+ "</tr>"
 					+ "</table>"
@@ -154,6 +160,8 @@ function getColorForDir(dirName) {
 	var color = "";
 	if (dirName == 'other' || dirName == 'divas') {
 		color = 'pink';
+	} else if (dirName.match(/Atletico_whatsapp/i) || dirName == 'brst') {
+		color = '#ff5959';
 	} else if (dirName.match(/Atletico/i) || dirName == 'brst') {
 		color = 'red';
 	}
@@ -172,7 +180,16 @@ function getColorForDir(dirName) {
 		color = 'green';
 	} else if (dirName == 'ind') {
 		color = 'orange';
+	} else if (dirName == 'originals') {
+		color = 'orange';
+	} else if (dirName == 'whatsapp') {
+		color = 'white';
+	} else if (dirName == 'matrimonial') {
+		color = '#afffe5';
+	} else if (dirName == 'post_it_notes') {
+		color = 'yellow';
 	}
+	
 	return color;
 }
 
@@ -181,7 +198,7 @@ var fileServerPrefix = "http://netgear.rohidekar.com:44452";
 function copy(button) {
 	// TODO: get the file path
 	var subdirSimpleName = button.value;
-	var filePath = button.parentElement.children[0].src.replace(fileServerPrefix, '');
+	var filePath = button.parentElement.parentElement.parentElement.children[0].children[1].children[0].src.replace(fileServerPrefix, '');
 	var parentDirPath = getParentPath(filePath);
 	return copyFileToFolder(filePath, 
 //		'/media/sarnobat/Unsorted/new/Photos/iPhone/'  // does not work
@@ -199,8 +216,9 @@ function getParentPath(filePath) {
 }
 
 function copyFileToFolder(filePath, destinationDirPath, button) {
-//debugger;
+
 		var li = button.parentElement.parentElement.parentElement.parentElement.parentElement.remove();
+//		debugger;
         $.getJSON(host + ":44486/md5ro/copyToFolder?filePath="+encodeURIComponent(filePath) + "&destinationDirPath=" + encodeURIComponent(destinationDirPath), function(response) {
                 $(button).css('background-color','green');
                 //debugger;
