@@ -1159,22 +1159,22 @@ System.out.println("DirObj::getFiles() - " + path);
 				Files.copy(sourceFilePath, destinationFilePath);// By default, it won't
 													// overwrite existing
 				System.out.println("Success: copied file now at " + destinationFilePath.toAbsolutePath());
-				new Thread() {
+/*				new Thread() {
 					@Override
 					public void run() {
-						try {
+						try {*/
 							FileInputStream fis = new FileInputStream(destinationFilePath.toFile());
 							String md5 = org.apache.commons.codec.digest.DigestUtils.md5Hex(fis);
 							fis.close();
 				String event = md5 + "::" + destinationFilePath.toAbsolutePath() .toString() + "\n";
 				FileUtils.writeStringToFile(Paths.get(Md5RoCopyFile.file).toFile(),event, "UTF-8", true);
 				System.out.println("Event reorded: " + event);
-						} catch (IOException e) {
+/*						} catch (IOException e) {
 							e.printStackTrace();
 						}
 					}
 
-				}.start();
+				}.start();*/
 			
 			} catch (IOException e) {
 				e.printStackTrace();

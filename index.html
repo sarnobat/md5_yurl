@@ -109,12 +109,20 @@ function initialize() {
 				};
 			})).map(function(fileObj) {
 				var cardHtml = "";
-				cardHtml += "<img src='" + fileObj.url + "' height=200><br>" + fileObj.filepath+"<br>";
+				cardHtml += "<img src='" + fileObj.url + "' height=250><br>" + fileObj.filepath+"<br>";
 				return cardHtml;
 			}).map(function(item) {
 				return "<li class='buttonize' style='background-color: #FDFD96'>" 
+					+ "<table>"
+					+ "<tr>"
+					+ "<td>"
 					+ item 
+					+ "</td>"
+					+ "<td>"
 					+ buttonsHtml
+					+ "</td>"
+					+ "</tr>"
+					+ "</table>"
 					+ "</li>";
 			}).reduce(function(acc, tag){
 				return acc + "&nbsp;" + tag;
@@ -192,7 +200,7 @@ function getParentPath(filePath) {
 
 function copyFileToFolder(filePath, destinationDirPath, button) {
 //debugger;
-		var li = button.parentElement.remove();
+		var li = button.parentElement.parentElement.parentElement.parentElement.parentElement.remove();
         $.getJSON(host + ":44486/md5ro/copyToFolder?filePath="+encodeURIComponent(filePath) + "&destinationDirPath=" + encodeURIComponent(destinationDirPath), function(response) {
                 $(button).css('background-color','green');
                 //debugger;
