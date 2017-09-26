@@ -51,10 +51,14 @@ function initialize() {
 		
 		var folders = a2[0].split('\n');
 		
-		var buttonsHtml = folders.map(function(categoryName) {
+		var buttonsHtml = folders.sort(function (a, b) {
+			return a.toLowerCase().localeCompare(b.toLowerCase());
+		}).map(function(categoryName) {
 			return "<input type=button class='genericButton' "
 				+ " value='" + categoryName + "'"
-				+ " onclick='copy(this)'>";
+				+ " onclick='copy(this)' "
+				+ " style='background-color:" + getColorForDir(categoryName)
+				+ "'>";
 		})
 		.reduce(function(acc, tag){
 			return acc + "&nbsp;" + tag;
@@ -64,11 +68,13 @@ function initialize() {
 		//shuffle(
 		a1[0].split('\n')
 		//)
-		.splice(0, 50);
+		//.splice(0, 50)
+		.reverse()
+		;
 		
 		$("#url_cards").append(
 			"<ol>"
-			+ images.filter(function(line) {
+			+ shuffle(images.filter(function(line) {
 				var pair = line.split('::');
 				var md5 = pair[0];
 				if (alreadyCopied.hasOwnProperty(md5)) {
@@ -77,6 +83,21 @@ function initialize() {
 					return true;
 				}
 			})
+			.filter(function(line) {
+				var pair = line.split('::');
+				var filePath = pair[1];
+				
+				var matchesVideo = filePath.match(/.*((mp4)|(webm)|(mov)|(mkv)|(flv)|(avi)|(mts))/gi);
+				var matchesTxt = filePath.match(/.*((txt)|(log))/gi);
+				if (matchesVideo != null) {
+					return false;
+				} else if (matchesTxt !=null) {
+					return false;
+				} else {
+					return true;
+				}
+			})
+			.slice(0,50)
 			.map(function(item) { 
 				var pair = item.split('::');
 				var md5 = pair[0];
@@ -86,9 +107,9 @@ function initialize() {
 					filepath : filePath,
 					url : 'http://netgear.rohidekar.com:44452' + filePath,
 				};
-			}).map(function(fileObj) {
+			})).map(function(fileObj) {
 				var cardHtml = "";
-				cardHtml += "<img src='" + fileObj.url + "' height=200>";
+				cardHtml += "<img src='" + fileObj.url + "' height=200><br>" + fileObj.filepath+"<br>";
 				return cardHtml;
 			}).map(function(item) {
 				return "<li class='buttonize' style='background-color: #FDFD96'>" 
@@ -121,6 +142,32 @@ function initialize() {
 	}); 
 }
 
+function getColorForDir(dirName) {								
+	var color = "";
+	if (dirName == 'other' || dirName == 'divas') {
+		color = 'pink';
+	} else if (dirName.match(/Atletico/i) || dirName == 'brst') {
+		color = 'red';
+	}
+	else if (dirName.match(/Liverpool/i)) {
+		color = 'red';
+	}
+	 else if (dirName == 'legs') {
+		color = 'yellow';
+	}  else if (dirName == 'navel') {
+		color = 'lightpurple';
+	}  else if (dirName == 'teen') {
+		color = 'lavender';
+	} else if (dirName.match(/productivity/i)) {
+                color = 'yellow';
+	} else if (dirName.match(/soccer/i)) {
+		color = 'green';
+	} else if (dirName == 'ind') {
+		color = 'orange';
+	}
+	return color;
+}
+
 var fileServerPrefix = "http://netgear.rohidekar.com:44452";
 
 function copy(button) {
@@ -145,13 +192,23 @@ function getParentPath(filePath) {
 
 function copyFileToFolder(filePath, destinationDirPath, button) {
 //debugger;
+		var li = button.parentElement.remove();
         $.getJSON(host + ":44486/md5ro/copyToFolder?filePath="+encodeURIComponent(filePath) + "&destinationDirPath=" + encodeURIComponent(destinationDirPath), function(response) {
                 $(button).css('background-color','green');
                 //debugger;
 				// TODO: remove element (like with move)
-                button.parentElement.remove();
+//                button.parentElement.remove();
+        }).done(function(){
+        	console.debug("success");
+        })
+        .fail(function(){
+        	alert("!!!! FAILURE !!!!");
         });
         $(button).css('background-color','orange');
+        //button.parentElement.style.backgroundColor="rgb(0,0,0)"
+        button.parentElement.style.height="0px"
+        button.parentElement.style.height="hidden"
+        //debugger;
 }
 
 function shuffle(array) {
@@ -273,15 +330,6 @@ function initializeBeforeAjax() {
 		}
 	}
 	
-	setCountAndTitle: {
-		$.getJSON(host + ":44438/md5ro/count_non_recursive?rootId=" +rootId,function(result){
-			$("#count").text(result.count);
-			$("#category").text(result.name);
-			document.title = result.name.charAt(0).toUpperCase() + result.name.slice(1) + " (yurl)";
-		});
-	}
-
-	setParentOfRootId(rootId);
 	
 	showLoading : {
 		$("#status").text("Loading"); 			
@@ -617,19 +665,6 @@ function tagUrlWithCategoryIds(nodeId, selections, button) {
 		.complete(function() { 
 		}
 	);
-}
-
-function setParentOfRootId(nodeId) {    	
-	$.getJSON(urlBase + "/parent?nodeId=" + nodeId, function(result){
-	})
-	.success(function(data) {  
-		if (data[0] != null) {
-			parentOfRootId = data[0].id;
-			$("#up").attr("href", "/md5ro/?rootId=" + parentOfRootId);
-		}
-	})
-	.error(function() { })
-	.complete(function() { });
 }
 
 $(function() {
@@ -1208,6 +1243,7 @@ body{
 						</div>
 
 						<!--Favorites-->
+						<!--
 						<div id='favorites' class='buttonize'>
 							<a href='/md5ro/?rootId=29196' >Products & Services</a><br>
 							<a href='/md5ro/?rootId=221013'>Buy these (or considering buying)</a><br>
@@ -1230,7 +1266,7 @@ body{
 							<a href='/md5ro/?rootId=29172'>Other</a><br>
 							<a href='/md5ro/?rootId=641426'>Autism / Aspergers</a><br>
 						</div>
-
+-->
 						<ol id="keyLinks"  class="buttonize" style="" ></ol>
 						<font color=grey><div id="status">Init</div></font>
 						<textarea id="keys" cols="34" rows="20px" class="buttonize"></textarea>
