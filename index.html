@@ -40,7 +40,7 @@ function initialize() {
 	$.when(
 		$.ajax(host + ":44485/md5ro/uncategorized?rootId=" +rootId), 
 		$.ajax(host + "/md5ro/iphone_categories.txt"),
-		$.ajax(host + "/md5ro/copy_events.txt")
+		$.ajax(host + "/md5ro/copy_events.txt?cacheBust=" + Math.random())
 		)
 	.done(function(a1, a2, copyEvents){
 		
@@ -101,7 +101,7 @@ function initialize() {
 						return true;
 					}
 				})
-				.slice(0,50)
+				.slice(0,limit)
 				.map(function(item) { 
 					var pair = item.split('::');
 					var md5 = pair[0];
@@ -115,7 +115,7 @@ function initialize() {
 			//)
 			.map(function(fileObj) {
 				var cardHtml = "";
-				cardHtml += "<img src='" + fileObj.url + "' height=250><br><textarea>" + fileObj.filepath+"</textarea><br><hr width=500><br>";
+				cardHtml += "<img src='" + fileObj.url + "' height=250><br>" +fileObj.md5+ "<br><textarea cols=50>" + fileObj.filepath+"</textarea><br><hr width=500><br>";
 				return cardHtml;
 			}).map(function(item) {
 				return "<li class='buttonize' style='background-color: #FDFD96'>" 
@@ -188,6 +188,10 @@ function getColorForDir(dirName) {
 		color = '#afffe5';
 	} else if (dirName == 'post_it_notes') {
 		color = 'yellow';
+	} else if (dirName == 'Sridhar') {
+		color = '#4a662d';
+	} else if (dirName == 'screenshots') {
+		color = '#d1ecff';
 	}
 	
 	return color;
@@ -1257,8 +1261,6 @@ body{
 				<tr>
 					<td width="25%" valign=top>
 
-						<a id="up">Up</a>
-						<a href="http://netgear.rohidekar.com:44442/md5ro/dumpurls">Export</a>
 						<!--
 						<strike><a href="http://netgear.rohidekar.com/launcher">Netcat Query</a></strike>
 						-->
@@ -1268,31 +1270,7 @@ body{
 							</center>
 						</div>
 
-						<!--Favorites-->
-						<!--
-						<div id='favorites' class='buttonize'>
-							<a href='/md5ro/?rootId=29196' >Products & Services</a><br>
-							<a href='/md5ro/?rootId=221013'>Buy these (or considering buying)</a><br>
-							<a href='/md5ro/?rootId=230184'>Bought</a><br>
-							<a href='/md5ro/?rootId=37373'> Owned</a><br>
-							<a href='/md5ro/?rootId=608592'>Library</a><br><br>
-                                                        <a href='/md5ro/?rootId=610307'>Audiobooks of interest</a><br><br>
-
-							<a href='/md5ro/?rootId=469990' >Home (Photos)</a><br>
-							<a href='/md5ro/?rootId=37658' >Youtube Playlists (videos)</a><br>
-							<a href='/md5ro/?rootId=37567'>Watch these</a><br>
-							<a href='/md5ro/?rootId=37652'>Watched</a><br>
-							<a href='/md5ro/?rootId=322647'>Atletico Madrid Documentary</a><br><br>
-
-							<a href='/md5ro/?rootId=221026'> Download</a><br>
-							<a href='/md5ro/?rootId=37581'> Download these</a><br>
-							<a href='/md5ro/?rootId=322410'> Downloaded</a><br><br>
-
-							<a href='/md5ro/?rootId=38907'>Priority 3</a><br>
-							<a href='/md5ro/?rootId=29172'>Other</a><br>
-							<a href='/md5ro/?rootId=641426'>Autism / Aspergers</a><br>
-						</div>
--->
+					
 						<ol id="keyLinks"  class="buttonize" style="" ></ol>
 						<font color=grey><div id="status">Init</div></font>
 						<textarea id="keys" cols="34" rows="20px" class="buttonize"></textarea>
@@ -1338,18 +1316,7 @@ body{
 	<table>
 <br>
 
-<button type=button onclick='$("#d3").toggle()'>Show visualization</button>
-<div id="d3" style="background-color:grey"></div>
-<!--<div id="infovis" style="background-color : black"></div>    -->
 
-<input type="button" value="Add URLs" onclick="sendBatch()" /><br>
-<div id="batchStatus"></div>
-<textarea id="urlBatchToSend" rows="20" cols="100"></textarea>
-
-<textarea cols=200>
-javascript:window.location.href = 'http://netgear.rohidekar.com/md5ro/stash2.html?url=' + encodeURIComponent(document.URL) + '&nodeId=45'  ;
-/* main: 45, product: 29196, video: 37658, tech: 46, other: 29172 */
-</textarea>
 <br>
 <br>
 <br>
