@@ -57,6 +57,16 @@ public class Md5RoList {
 						.build();
 			}
 		}
+
+
+    @GET
+    @javax.ws.rs.Path("/health")
+    @Produces("application/json")
+    public Response health() {
+      Response r = Response.ok().header("Access-Control-Allow-Origin", "*").type("application/json").entity(new JSONObject().toString()).build();
+      return r;
+    }
+
 	}
 
 	public static void main(String[] args) throws URISyntaxException,

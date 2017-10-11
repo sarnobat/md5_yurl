@@ -91,6 +91,15 @@ public class Md5RoCopyFile {
 			System.out.println("Coagulate.MyResource.MyResource()");
 		}
 
+
+    @GET
+    @javax.ws.rs.Path("/health")
+    @Produces("application/json")
+    public Response health() {
+      Response r = Response.ok().header("Access-Control-Allow-Origin", "*").type("application/json").entity(new JSONObject().toString()).build();
+      return r;
+    }
+
 		//
 		// mutators
 		//
