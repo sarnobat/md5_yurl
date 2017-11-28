@@ -71,7 +71,7 @@ function initialize() {
 		//.splice(0, 50)
 		.reverse()
 		;
-		
+		var i = 0;
 		$("#url_cards").append(
 			"<ol>"
 			//+ shuffle(
@@ -118,7 +118,9 @@ function initialize() {
 				cardHtml += "<img src='" + fileObj.url + "' height=250><br>" +fileObj.md5+ "<br><textarea cols=50>" + fileObj.filepath+"</textarea><br><hr width=500><br>";
 				return cardHtml;
 			}).map(function(item) {
-				return "<li class='buttonize' style='background-color: #FDFD96'>" 
+				++i;
+				return "<a id='anchor"+i+"'>"
+				    + "<li class='buttonize' style='background-color: #FDFD96'>" 
 					+ "<table>"
 					+ "<tr>"
 					+ "<td>"
@@ -129,7 +131,8 @@ function initialize() {
 					+ "</td>"
 					+ "</tr>"
 					+ "</table>"
-					+ "</li>";
+					+ "</li>"
+					+ "</a>";
 			}).reduce(function(acc, tag){
 				return acc + "&nbsp;" + tag;
 			}, "")
@@ -152,6 +155,8 @@ function initialize() {
 			}, "")
 		);
 
+		location.href = "#";
+		location.href = "#anchor20";
 
 	}); 
 }

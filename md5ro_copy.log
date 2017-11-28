@@ -1,0 +1,5 @@
+start
+args = [4486, /home/sarnobat/github/md5ro/copy_events.txt]
+Note: 4486 is hardcoded, I can't get the command line args to work inside docker.
+Nov 26, 2017 10:00:26 PM org.glassfish.jersey.server.ApplicationHandler initialize
+INFO: Initiating Jersey application, version Jersey: 2.0 2013-05-14 20:07:34...
