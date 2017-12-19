@@ -87,7 +87,9 @@ function initialize() {
 				.filter(function(line) {
 					var pair = line.split('::');
 					var filePath = pair[1];
-				
+					if (filePath == null) {
+						debugger;
+					}	
 					var matchesVideo = filePath.match(/.*((mp4)|(webm)|(mov)|(mkv)|(flv)|(avi)|(mts))/gi);
 					var matchesTxt = filePath.match(/.*((txt)|(log))/gi);
 					var ignore = filePath.match(/.*\.((jp2)|(dat))/gi);
