@@ -88,8 +88,10 @@ function initialize() {
 					var pair = line.split('::');
 					var filePath = pair[1];
 					if (filePath == null) {
-						debugger;
-					}	
+						pair = line.split('  ');
+						filePath = pair[1];
+						//debugger;
+					}
 					var matchesVideo = filePath.match(/.*((mp4)|(webm)|(mov)|(mkv)|(flv)|(avi)|(mts))/gi);
 					var matchesTxt = filePath.match(/.*((txt)|(log))/gi);
 					var ignore = filePath.match(/.*\.((jp2)|(dat))/gi);
@@ -108,6 +110,11 @@ function initialize() {
 					var pair = item.split('::');
 					var md5 = pair[0];
 					var filePath = pair[1];
+					if (filePath == null) {
+						pair = item.split('  ');
+						filePath = pair[1];
+						//debugger;
+					}
 					return  { 
 						md5 : pair[0], 
 						filepath : filePath,
@@ -115,6 +122,23 @@ function initialize() {
 					};
 				})
 			//)
+			.filter(function(fileObj){
+				if (fileObj.filepath == null) {
+//					console.debug('filtered out: ' + fileObj);
+// 					return false;
+					debugger;
+				}
+// 				// filter out rsync dotfile junk
+				var filename = fileObj.filepath.replace(/^.*[\\\/]/, '');
+				var rsyncEmptyJunk = (/\..+\..+\..+/.test(filename));
+				if (rsyncEmptyJunk) {
+					// Why is this not getting printed?
+					console.debug(filename);
+					//debugger;
+					return false;
+				}
+return true;
+			})
 			.map(function(fileObj) {
 				var cardHtml = "";
 				cardHtml += "<img src='" + fileObj.url + "' height=250><br>" +fileObj.md5+ "<br><textarea cols=50>" + fileObj.filepath+"</textarea><br><hr width=500><br>";
